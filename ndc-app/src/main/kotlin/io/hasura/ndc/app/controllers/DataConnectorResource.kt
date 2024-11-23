@@ -22,7 +22,7 @@ class DataConnectorResource @Inject constructor(
         val canConnectToDB = dataConnectorService.runHealthCheckQuery()
         if (canConnectToDB) {
             return Response
-                .status(Response.Status.OK)
+                .status(Response.Status.NO_CONTENT)
                 .build()
         } else {
             throw RuntimeException("Unable to connect to DB")

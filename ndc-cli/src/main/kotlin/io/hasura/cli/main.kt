@@ -1,7 +1,6 @@
 package io.hasura.cli
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import io.hasura.ndc.common.ConnectorConfiguration
 import picocli.CommandLine
 import picocli.CommandLine.*
 import java.io.File
@@ -12,7 +11,8 @@ import kotlin.system.exitProcess
 enum class DatabaseType {
     ORACLE,
     MYSQL,
-    SNOWFLAKE
+    SNOWFLAKE,
+    PHOENIX
 }
 
 
@@ -54,51 +54,42 @@ class CLI {
             names = ["-s", "--schemas"],
             arity = "0..*",
             split = ",",
+            defaultValue = "",
             description = ["Comma-separated list of schemas to introspect"]
         )
-        schemas: List<String>?
+        schemas: List<String> = emptyList()
     ) {
-        val file = File(outfile)
-
-        println("Checking for configuration file at ${file.absolutePath}")
-        val existingConfig = file.let {
-            if (it.exists()) {
-                println("Existing configuration file detected")
-                mapper.readValue(it, ConnectorConfiguration::class.java)
-            } else {
-                println("Non-existent or empty configuration file detected")
-                ConnectorConfiguration()
-            }
-        }
 
         val configGenerator = when (database) {
             DatabaseType.ORACLE -> OracleConfigGenerator
             DatabaseType.MYSQL -> MySQLConfigGenerator
             DatabaseType.SNOWFLAKE -> SnowflakeConfigGenerator
+            DatabaseType.PHOENIX -> PhoenixConfigGenerator
         }
 
-        println("Generating configuration for $database database...")
-        val introspectedConfig = configGenerator.getConfig(
+        val config = configGenerator.getConfig(
             jdbcUrl = jdbcUrl,
-            schemas = schemas ?: emptyList()
-        )
-        val mergedConfigWithNativeQueries = introspectedConfig.copy(
-            nativeQueries = existingConfig.nativeQueries
+            schemas = schemas
         )
 
+        val file = File(outfile)
         try {
-            println("Writing configuration to ${file.absolutePath}")
-            mapper.writerWithDefaultPrettyPrinter().writeValue(file, mergedConfigWithNativeQueries)
+            file.createNewFile()
+            mapper.writerWithDefaultPrettyPrinter().writeValue(file, config)
         } catch (e: Exception) {
             println("Error writing configuration to file: ${e.message}")
 
             val parentDir = file.parentFile
-            val permissions = Files.getPosixFilePermissions(parentDir.toPath())
+            val permissions =  Files.getPosixFilePermissions(parentDir.toPath())
             val posixPermissions = PosixFilePermissions.toString(permissions)
 
+            println("Current user: ${System.getProperty("user.name")}")
             println("Parent directory: ${parentDir.absolutePath}")
-            println("Readable: ${parentDir.canRead()}, Writable: ${parentDir.canWrite()}")
-            println("Permissions: $posixPermissions")
+            println("   Readable: ${parentDir.canRead()}, Writable: ${parentDir.canWrite()}")
+            println("   Permissions: $posixPermissions")
+
+            println("If running inside of Docker, please ensure that the parent directory is writable by the Docker user")
+            println("Alternatively, create an empty config file and set all permissions: 'touch configuration.json && chmod 777 configuration.json'")
 
             exitProcess(1)
         }
@@ -113,3 +104,4 @@ class CLI {
         }
     }
 }
+

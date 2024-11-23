@@ -1,5 +1,3 @@
-import org.jetbrains.kotlin.builtins.StandardNames.FqNames.set
-
 plugins {
     kotlin("jvm")
     kotlin("plugin.allopen")
@@ -14,10 +12,6 @@ repositories {
     mavenCentral()
     maven {
         url = uri("https://repo.jooq.org/repo")
-        credentials {
-            username = env.fetch("JOOQ_PRO_EMAIL")
-            password = env.fetch("JOOQ_PRO_LICENSE")
-        }
     }
 }
 
@@ -32,20 +26,16 @@ dependencies {
     implementation(project(":ndc-ir"))
     implementation(project(":ndc-app"))
 
-    // JDBC driver
-    implementation("net.snowflake:snowflake-jdbc:3.16.1")
-
-    implementation("org.jooq.pro:jooq:3.19.8")
-    modules {
-        module("org.jooq:jooq") {
-            replacedBy("org.jooq.pro:jooq", "Oracle requires jOOQ pro")
-        }
-    }
+    // Phoenix JDBC driver
+    implementation("org.apache.phoenix:phoenix-client-hbase-2.4:5.1.1")
+    implementation("org.apache.phoenix:phoenix-queryserver-client:5.0.0-HBase-2.0")
+    implementation("org.jooq:jooq:3.19.8")
 }
 
 tasks.withType<Test> {
     systemProperty("java.util.logging.manager", "org.jboss.logmanager.LogManager")
 }
+
 allOpen {
     annotation("jakarta.ws.rs.Path")
     annotation("jakarta.enterprise.context.ApplicationScoped")

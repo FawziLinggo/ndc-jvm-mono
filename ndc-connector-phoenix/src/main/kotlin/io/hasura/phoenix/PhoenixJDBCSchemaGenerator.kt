@@ -1,13 +1,15 @@
-package io.hasura.oracle
+package io.hasura.phoenix
 
 import io.hasura.ndc.app.services.JDBCSchemaGenerator
 import io.hasura.ndc.common.NDCScalar
+import io.hasura.ndc.common.javaSqlTypeToNDCScalar
 import io.hasura.ndc.ir.AggregateFunctionDefinition
 import io.hasura.ndc.ir.ComparisonOperatorDefinition
 import io.hasura.ndc.ir.ScalarType
 import io.hasura.ndc.ir.Type
+import java.sql.JDBCType
 
-object OracleJDBCSchemaGenerator : JDBCSchemaGenerator() {
+object PhoenixJDBCSchemaGenerator : JDBCSchemaGenerator() {
 
     override fun getScalars(): Map<String, ScalarType> {
         return mapOf(
@@ -104,22 +106,8 @@ object OracleJDBCSchemaGenerator : JDBCSchemaGenerator() {
     }
 
     override fun mapScalarType(columnTypeStr: String, numericScale: Int?): NDCScalar {
-        return when (columnTypeStr.uppercase()) {
-            "VARCHAR2" -> NDCScalar.STRING
-            "NVARCHAR2" -> NDCScalar.STRING
-            "NUMBER" -> if (numericScale != null && numericScale > 0) NDCScalar.FLOAT else NDCScalar.INT
-            "FLOAT" -> NDCScalar.FLOAT
-            "LONG" -> NDCScalar.INT
-            "DATE" -> NDCScalar.DATE
-            "ROWID" -> NDCScalar.STRING
-            "UROWID" -> NDCScalar.STRING
-            "CHAR" -> NDCScalar.STRING
-            "NCHAR" -> NDCScalar.STRING
-            "CLOB" -> NDCScalar.STRING
-            "NCLOB" -> NDCScalar.STRING
-            "JSON" -> NDCScalar.STRING
-            "BOOLEAN" -> NDCScalar.BOOLEAN
-            else -> NDCScalar.STRING
-        }
+        // Map string of JDBCType to NDCScalar
+        val jdbcType = JDBCType.entries.find { it.name == columnTypeStr } ?: return NDCScalar.STRING
+        return javaSqlTypeToNDCScalar(jdbcType.vendorTypeNumber)
     }
 }
